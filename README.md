@@ -17,6 +17,9 @@ like any other Zigbee device and assign it this driver.
 - `setSchedule()` — the device responded with a ZCL Write Attributes Response
   status `SUCCESS`, and its own readback report decoded back to exactly the
   schedule that was sent (round-tripped correctly).
+- Schedule times are UTC on the device, confirmed live (an entry of hour=5
+  fired at 23:00 local / MDT, UTC-6) — the driver converts local↔UTC for you
+  automatically. See [Timezones and DST](#timezones-and-dst).
 
 Reverse-engineered from two sources: the open-source ZHA quirk
 ([`feeder_acn001.py`](https://github.com/zigpy/zha-device-handlers/blob/dev/zhaquirks/xiaomi/aqara/feeder_acn001.py)),
@@ -67,14 +70,16 @@ Hubitat drivers can pair with it but can't do anything useful.
 | `refresh()` | Attempt to re-sync state (device may not respond to reads — status is normally push/report-driven) |
 | `configure()` | Re-bind attribute reporting |
 | `setMode(manual/schedule)` | Switch between manual-only and on-device schedule. The schedule only actually fires while mode is `"schedule"` |
-| `setSchedule(entries)` | Push a feeding schedule. JSON list, e.g. `[{"days":"everyday","hour":12,"minute":0,"size":1},{"days":"everyday","hour":20,"minute":0,"size":1}]`. `days` accepts a named value (`everyday`, `workdays`, `weekend`, `mon`..`sun`), a comma list (`"mon,wed,fri"`), or a raw bitmask number |
+| `setSchedule(entries)` | Push a feeding schedule. JSON list, e.g. `[{"days":"everyday","hour":12,"minute":0,"size":1},{"days":"everyday","hour":20,"minute":0,"size":1}]`. `hour`/`minute` are **local time**. `days` accepts a named value (`everyday`, `workdays`, `weekend`, `mon`..`sun`), a comma list (`"mon,wed,fri"`), or a raw bitmask number |
+| `resyncSchedule()` | Re-sends the last schedule passed to `setSchedule()`, recomputing the local→UTC conversion with the current offset. Call after a DST transition — see [Timezones and DST](#timezones-and-dst) |
 
 ## Attributes
 
-`lastFeedingSource`, `lastFeedingSize`, `portionsDispensedToday`,
+`lastFeedingSource`, `lastFeedingSize`, `lastFeedingTime` (local timestamp,
+set whenever a feeding report arrives), `portionsDispensedToday`,
 `weightDispensedToday`, `errorDetected`, `childLock`, `led`, `servingSize`,
 `portionWeight`, `feedingMode`, `schedule` (JSON string of the device's
-current schedule, updated whenever it reports one back).
+current schedule in local time, updated whenever it reports one back).
 
 ## On-device scheduling
 
@@ -94,6 +99,27 @@ If you'd rather drive feeding entirely from Hubitat instead (e.g. to
 integrate with other automations/conditions), `feed()` + Rule Machine /
 Simple Automation Rules works just as well — `setSchedule()` is there for
 when you want it to survive a Hubitat outage.
+
+## Timezones and DST
+
+The device stores schedule times in UTC, not local time (confirmed live —
+see [Status](#status)). `setSchedule()` converts the `hour`/`minute` you
+give it from local time to UTC using Hubitat's `location.timeZone`, computed
+fresh at the moment the command runs — so it's correct for whatever offset
+is active right then, including DST. `parseSchedule()` converts the
+device's UTC readback back to local for the `schedule` attribute, so what
+you read back matches what you originally sent. If the local→UTC conversion
+crosses midnight (e.g. an 11pm entry becoming 5am UTC the next day), the
+day-of-week bitmask shifts accordingly so the entry still fires on the
+right local day.
+
+**The catch**: the device only stores a fixed UTC time — it has no concept
+of DST itself. So a schedule set correctly today will silently fire an hour
+off in local time after the next DST transition, until re-sent. Call
+`resyncSchedule()` (re-sends the last schedule passed to `setSchedule()`,
+recomputed with the current offset) to fix this — the simplest approach is
+one Rule Machine automation with a time trigger a day or two after each of
+the year's two DST changeover dates, calling `resyncSchedule()`.
 
 ## Protocol notes
 
