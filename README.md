@@ -167,6 +167,11 @@ on `,`, hex-decode each 10-char entry back to its 5 raw bytes.
   Zigbee equivalent — recording happens entirely on-device via the built-in
   mic, and neither the ZHA quirk nor the Zigbee2MQTT converter expose
   anything for it.
+- **Schedule firing precision**: on-device scheduled feeds fire roughly
+  ~10 seconds after the target minute, not exactly on it. The device
+  appears to check its internal schedule on some polling interval rather
+  than continuously — this is firmware behavior with no Zigbee command to
+  tighten it, so it's not something the driver can control.
 
 ## Debugging
 
