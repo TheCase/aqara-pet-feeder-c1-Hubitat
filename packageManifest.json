@@ -1,0 +1,17 @@
+{
+  "packageName": "Aqara Pet Feeder C1 Driver",
+  "author": "TheCase",
+  "version": "0.0.1",
+  "minimumHEVersion": "2.5.2",
+  "dateReleased": "2026-08-26",
+  "licenseFile": "LICENSE",
+  "drivers": [
+    {
+      "id": "61c4769e-c179-4109-ac38-d45ddf407c8b",
+      "name": "Aqara Pet Feeder C1",
+      "namespace": "repulsor",
+      "location": "https://raw.githubusercontent.com/TheCase/aqara-pet-feeder-c1-Hubitat/main/aqara-pet-feeder-c1.groovy",
+      "required": true
+    }
+  ]
+}
